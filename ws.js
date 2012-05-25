@@ -1,31 +1,39 @@
 var http = require('http');
+var connection = require('./lib/connection.js');
 
-var connection = require('./lib/connection.js'),
-    frame = require('./lib/dataFrame.js');
+var connectionPool = [];
+var ws = http.createServer().listen(9527);
 
-http.createServer(function(req, res){
-
-})
-.on('connection', function(socket){
+ws.on('connection', function(socket){
   console.log('[OPEN] socket connected...');
-})
-.on('upgrade', function(request, socket, head){
-  var connect = new connection(request, socket, head);
-  if (connect.webSocketVer == '13' && connect.webSocketExt == 'x-webkit-deflate-frame'){//webKit
-    console.log('[UPGRADE] browser: web-kit');
-    connect.handshake();
-  }
-  //接收
-  socket.on('data',function(rawData){
-    console.log('[DATA]');
-    console.log(rawData);
-    var dataFrame = new frame();
-    console.log(dataFrame.parseFrame(rawData));
-    var resData = dataFrame.makeFrame(dataFrame.msg);
-    console.log(resData);
-    socket.write(resData.rawData);
+});
+
+ws.on('broadcast', function(msg){
+  console.log('[BROADCAST]');
+  connectionPool.forEach(function(connect){
+    connect.emit('send', msg);
   });
-})
-.listen(9527);
+});
+
+ws.on('onmessage', function(connect, rawData){
+  connect.emit('message', rawData);
+  var msg = connect.msg
+  ws.emit('broadcast', msg);
+});
+
+ws.on('end', function(sid){
+  console.log('[END] ' + sid);
+});
+
+ws.on('upgrade', function(request, socket, head){
+  var connect = new connection(request, socket, head);
+  connectionPool.push(connect);
+  socket.on('data', function(rawData){
+    ws.emit('onmessage', connect, rawData);
+  });
+  socket.on('close', function(){
+    ws.emit('end', connect.sid);
+  })
+});
 
 console.log('webSocket server running...');
