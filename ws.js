@@ -9,7 +9,11 @@ ws.on('connection', function(socket){
 });
 
 ws.on('broadcast', function(msg){
-  console.log('[BROADCAST]');
+  var count = 0;
+  for (var ind in connectionPool){
+    count++;
+  }
+  console.log('[BROADCAST] onLine: ' + count);
   connectionPool.forEach(function(connect){
     connect.emit('send', msg);
   });
@@ -21,8 +25,15 @@ ws.on('onmessage', function(connect, rawData){
   ws.emit('broadcast', msg);
 });
 
-ws.on('end', function(sid){
-  console.log('[END] ' + sid);
+ws.on('end', function(connect){
+  connect.emit('disconnect');
+  for (var ind in connectionPool){
+    if (connectionPool[ind].sid == connect.sid){
+      break;
+    }
+  }
+  delete connectionPool[ind];
+  console.log('[END] ' + connect.sid);
 });
 
 ws.on('upgrade', function(request, socket, head){
@@ -32,7 +43,7 @@ ws.on('upgrade', function(request, socket, head){
     ws.emit('onmessage', connect, rawData);
   });
   socket.on('close', function(){
-    ws.emit('end', connect.sid);
+    ws.emit('end', connect);
   })
 });
 
