@@ -22,7 +22,9 @@ ws.on('broadcast', function(msg){
 ws.on('onmessage', function(connect, rawData){
   connect.emit('message', rawData);
   var msg = connect.msg
-  ws.emit('broadcast', msg);
+  if (msg){
+    ws.emit('broadcast', msg);
+  }
 });
 
 ws.on('end', function(connect){
